@@ -3,10 +3,11 @@ package sacn
 import (
 	"errors"
 	"fmt"
-	"golang.org/x/net/ipv4"
 	"log"
 	"net"
 	"time"
+
+	"golang.org/x/net/ipv4"
 
 	"github.com/libp2p/go-reuseport"
 	"gitlab.com/patopest/go-sacn/packet"
@@ -15,6 +16,7 @@ import (
 // PacketCallbackFunc is the function type to be used with [Receiver.RegisterPacketCallback].
 // The arguments are the latest received [packet.SACNPacket] on any universe and the source IP that sent the packet as a string.
 type PacketCallbackFunc func(p packet.SACNPacket, source string)
+
 // TerminationCallbackFunc is the function type to be used with [Receiver.RegisterTerminationCallback].
 // The universe argument is the universe number which entered Network Data Loss conditions.
 type TerminationCallbackFunc func(universe uint16)
@@ -71,9 +73,9 @@ func (r *Receiver) Stop() {
 	close(r.stop)
 }
 
-// JoinUniverse starts listening for packets sent on the provided universe.  
-// Universe number shall be in the range 1 to 63999.  
-// Joins the multicast group associated with the universe number.  
+// JoinUniverse starts listening for packets sent on the provided universe.
+// Universe number shall be in the range 1 to 63999.
+// Joins the multicast group associated with the universe number.
 func (r *Receiver) JoinUniverse(universe uint16) error {
 	if universe == 0 || (universe > 64000 && universe != DISCOVERY_UNIVERSE) { // Section 9.1.1 of ANSI E1.31—2018
 		return errors.New(fmt.Sprintf("Invalid universe number: %d\n", universe))
@@ -85,8 +87,8 @@ func (r *Receiver) JoinUniverse(universe uint16) error {
 	return nil
 }
 
-// Stops listening for packets sent on a universe.  
-// Leaves the multicast groups associated with the universe number.  
+// Stops listening for packets sent on a universe.
+// Leaves the multicast groups associated with the universe number.
 func (r *Receiver) LeaveUniverse(universe uint16) error {
 	err := r.conn.LeaveGroup(r.itf, universeToAddress(universe))
 	if err != nil {
@@ -104,8 +106,8 @@ func (r *Receiver) RegisterPacketCallback(packetType packet.SACNPacketType, call
 // RegisterTerminationCallback registers a callback for when a universe enters Network Data Loss conditions as defined in section 6.7.1 of ANSI E1.31—2018.
 //
 // Network Data Loss conditions:
-// 	- Did not receive data for [NETWORK_DATA_LOSS_TIMEOUT].
-// 	- Data packet contained the StreamTerminated bit in the [packet.DataPacket] Options field.
+//   - Did not receive data for [NETWORK_DATA_LOSS_TIMEOUT].
+//   - Data packet contained the StreamTerminated bit in the [packet.DataPacket] Options field.
 func (r *Receiver) RegisterTerminationCallback(callback TerminationCallbackFunc) {
 	r.terminationCallback = callback
 }
@@ -123,7 +125,7 @@ func (r *Receiver) recvLoop() {
 
 			err := r.conn.SetDeadline(time.Now().Add(time.Millisecond * NETWORK_DATA_LOSS_TIMEOUT))
 			if err != nil {
-				log.Panic(fmt.Sprintf("Could not set deadline on socket: %v", err))
+				log.Panicf("Could not set deadline on socket: %v", err)
 			}
 
 			n, _, addr, _ := r.conn.ReadFrom(buf)
@@ -133,7 +135,6 @@ func (r *Receiver) recvLoop() {
 			}
 
 			source := addr.(*net.UDPAddr)
-			// fmt.Printf("Received %d bytes from %s\n", n, source.String())
 			var p packet.SACNPacket
 			p, err = packet.Unmarshal(buf[:n])
 			if err != nil {

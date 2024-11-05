@@ -70,8 +70,17 @@ func (d *DataPacket) GetType() SACNPacketType {
 }
 
 // Returns the DMX512-A data of the packet (up to 512 bytes). Does not include the Start Code (byte 0 of a DMX packet).
-func (d *DataPacket) GetData() []byte {
-	return d.Data[1:]
+func (d *DataPacket) GetData(params ...uint8) ([]byte, error) {
+
+	if (len(params) > 0 && len(params) < 2) || len(params) > 2 {
+		return nil, fmt.Errorf("invalid number of parameters, expected 0 if you want to get all the data or 2 if you want to get a range of data, got %d", len(params))
+	}
+
+	if len(params) == 0 {
+		return d.Data[1:], nil
+	}
+
+	return d.Data[params[0]:(params[0] + params[1])], nil
 }
 
 // Set DMX512-A data. Does not include the Start Code (byte 0 of a DMX packet).

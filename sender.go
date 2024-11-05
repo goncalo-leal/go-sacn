@@ -216,12 +216,39 @@ func (s *Sender) sendLoop(universe uint16) {
 
 func (s *Sender) sendDiscoveryLoop() {
 
+	sendDiscoveryPacket := func() {
+		num := len(s.universes)
+		pages := num / 512
+		universes := s.GetUniverses()
+		for page := 0; page < pages+1; page += 1 {
+			p := packet.NewDiscoveryPacket()
+			p.Page = uint8(page)
+			p.Last = uint8(pages)
+			p.CID = s.cid
+			p.SetSourceName(s.sourceName)
+
+			start := page * 512
+			end := (page + 1) * 512
+			if end > len(universes) {
+				end = len(universes)
+			}
+			p.SetUniverses(universes[start:end])
+
+			s.sendPacket(s.discovery, p)
+		}
+	}
+
 	s.discovery = &senderUniverse{
 		number:    DISCOVERY_UNIVERSE,
 		enabled:   true,
 		multicast: true,
-		dataCh:    make(chan packet.SACNPacket, 0), // still create a data channel to close on sender Close()
+		dataCh:    make(chan packet.SACNPacket), // still create a data channel to close on sender Close()
 	}
+
+	// Send a discovery packet right away
+	sendDiscoveryPacket()
+
+	// Create a ticker so a discovery packet is sent on every tick
 	s.wg.Add(1)
 	timer := time.NewTicker(UNIVERSE_DISCOVERY_INTERVAL * time.Second)
 	defer timer.Stop()
@@ -232,25 +259,7 @@ func (s *Sender) sendDiscoveryLoop() {
 		case <-s.discovery.dataCh: // channel was closed
 			return
 		case <-timer.C:
-			num := len(s.universes)
-			pages := num / 512
-			universes := s.GetUniverses()
-			for page := 0; page < pages+1; page += 1 {
-				p := packet.NewDiscoveryPacket()
-				p.Page = uint8(page)
-				p.Last = uint8(pages)
-				p.CID = s.cid
-				p.SetSourceName(s.sourceName)
-
-				start := page * 512
-				end := (page + 1) * 512
-				if end > len(universes) {
-					end = len(universes)
-				}
-				p.SetUniverses(universes[start:end])
-
-				s.sendPacket(s.discovery, p)
-			}
+			sendDiscoveryPacket()
 		}
 	}
 }
